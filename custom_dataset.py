@@ -11,6 +11,7 @@ import torch
 # All imagenet class list and dict are sorted by worndet id in ascending order
 from classnames_imagenet import classnames_simple as imagenet_classnames
 from classnames_imagenet import subset100 as imagenet100classes
+imagenet100classes = sorted(imagenet100classes)
 
 
 class ImageNet100(ImageFolder):
@@ -24,7 +25,9 @@ class ImageNet100(ImageFolder):
         #     line.decode("utf-8").strip()
         #     for line in urllib.request.urlopen("https://raw.githubusercontent.com/HobbitLong/CMC/master/imagenet100.txt")
         # ]
-        classes = [cls in self.imagenet100classes if cls in os.listdir()]
+        classes = self.imagenet100classes
+        for cls in classes:
+            assert cls in os.listdir(directory), f"{cls} not in {directory}"
         class_to_idx = {cls_name: i for i, cls_name in enumerate(classes)}
         return classes, class_to_idx
 

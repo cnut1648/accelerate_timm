@@ -25,6 +25,7 @@ import timm
 from timm.optim import create_optimizer_v2, optimizer_kwargs
 from timm.scheduler import create_scheduler_v2, scheduler_kwargs
 from timm.loss import JsdCrossEntropy, SoftTargetCrossEntropy, BinaryCrossEntropy, LabelSmoothingCrossEntropy
+from timm.utils.metrics import accuracy
 
 import accelerate
 from accelerate import Accelerator
@@ -369,7 +370,7 @@ def training_function(args):
         
         eval_metric = evaluate(args, model, validate_loss_fn, val_dataloader, accelerator, epoch, checkpointing_steps)
         # Use accelerator.print to print only on the main process.
-        accelerator.print(f"epoch {epoch}: {100 * eval_metric:.2f}")
+        accelerator.print(f"epoch {epoch}: top1={eval_metric[0]:.2f}, top5={eval_metric[1]:.2f}")
 
     test_metric = evaluate(args, model, validate_loss_fn, test_dataloader, accelerator, epoch, checkpointing_steps)
 
@@ -428,6 +429,7 @@ def evaluate(
     accurate = 0
     num_elems = 0
     total_loss = 0
+    logits, refs = torch.Tensor([]).to(model.device), torch.Tensor([]).to(model.device)
     for step, (inputs, targets) in enumerate(val_dataloader):
         with torch.no_grad():
             outputs = model(inputs)
@@ -438,13 +440,16 @@ def evaluate(
             targets = targets[0:targets.size(0):reduce_factor]
 
         loss = validate_loss_fn(outputs, targets)
-        predictions = outputs.argmax(dim=-1)
-        predictions, references = accelerator.gather_for_metrics((predictions, targets))
-        accurate_preds = predictions == references
+        logit, ref = accelerator.gather_for_metrics((outputs, targets))
+        logits = torch.concat([logits, logit], dim=0)
+        refs = torch.concat([refs, ref], dim=0)
+        prediction = logit.argmax(dim=-1)
+        accurate_preds = prediction == ref
         num_elems += accurate_preds.shape[0]
         accurate += accurate_preds.long().sum()
-
-    eval_metric = accurate.item() / num_elems
+    print(logits.shape, refs.shape)
+    eval_metric = accuracy(logits, refs, topk=(1,5))
+    print(100*accurate.item() / num_elems)
     if checkpointing_steps == "epoch":
         output_dir = f"epoch_{epoch}"
         if args.output_dir is not None:
