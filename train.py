@@ -447,9 +447,8 @@ def evaluate(
         accurate_preds = prediction == ref
         num_elems += accurate_preds.shape[0]
         accurate += accurate_preds.long().sum()
-    print(logits.shape, refs.shape)
     eval_metric = accuracy(logits, refs, topk=(1,5))
-    print(100*accurate.item() / num_elems)
+    #print(100*accurate.item() / num_elems)
     if checkpointing_steps == "epoch":
         output_dir = f"epoch_{epoch}"
         if args.output_dir is not None:
