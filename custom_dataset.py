@@ -167,12 +167,7 @@ def get_train_val_test_dataset(dset, train_dirs: List[str], val_dir: str, test_d
     train_datasets = SynImageFolder(
         train_dirs[0], 
         use_imagenet=100, 
-        transform=DataAugmentationDINO(
-            global_crops_scale=(0.4, 1),
-            local_crops_scale=(0.05, 4),
-            local_crops_number=8,
-        )
-        # transforms default values from https://github.com/facebookresearch/dino/blob/main/main_dino.py
+        transform=None,  # any transforms provided here will be owritten by timm create_loader function
     )
     val_dataset = ImageNet100(val_dir)
     test_dataset = ImageNet100(test_dir)

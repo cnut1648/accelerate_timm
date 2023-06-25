@@ -32,6 +32,7 @@ from accelerate import Accelerator
 from accelerate.logging import get_logger
 
 from custom_dataset import ImageNet100, SynImageFolder, add_dataset_args, get_train_val_test_dataset
+from dino_augmentation import DataAugmentationDINO
 
 ########################################################################
 # This is a fully working simple example to use Accelerate
@@ -245,6 +246,13 @@ def training_function(args):
         crop_pct=data_config['crop_pct'],
         pin_memory=True,
         device=accelerator.device,
+    )
+
+    # transforms default values from https://github.com/facebookresearch/dino/blob/main/main_dino.py
+    train_dataloader.dataset.transform = DataAugmentationDINO(
+        global_crops_scale=(0.4, 1),
+        local_crops_scale=(0.05, 4),
+        local_crops_number=8,
     )
 
     # We could avoid this line since the accelerator is set with `device_placement=True` (default value).
