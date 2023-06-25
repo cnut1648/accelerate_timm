@@ -1,7 +1,7 @@
 # Code adapted from https://github.com/facebookresearch/dino
 
 import random
-from PIL import Image, ImageFilter
+from PIL import Image, ImageFilter, ImageOps
 from torchvision import transforms
 
 
