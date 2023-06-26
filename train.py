@@ -26,6 +26,7 @@ from timm.optim import create_optimizer_v2, optimizer_kwargs
 from timm.scheduler import create_scheduler_v2, scheduler_kwargs
 from timm.loss import JsdCrossEntropy, SoftTargetCrossEntropy, BinaryCrossEntropy, LabelSmoothingCrossEntropy
 from timm.utils.metrics import accuracy
+from einops import rearrange, repeat
 
 import accelerate
 from accelerate import Accelerator
@@ -392,6 +393,13 @@ def train_one_epoch(
     total_loss = 0
     for batch_idx, (inputs, targets) in enumerate(active_dataloader):
         with accelerator.accumulate(model):
+
+            if isinstance(active_dataloader.dataset.transform, DataAugmentationDINO):
+                assert inputs.ndim == 5
+                l = inputs.shape[1]
+                inputs = rearrange(inputs, "b l c h w -> (b l) c h w")
+                targets = repeat(targets, "b -> (b l)", l=l)
+
             if mixup_fn is not None:
                 inputs, targets = mixup_fn(inputs, targets)
             # inputs, targets = inputs.to(accelerator.device), targets.to(accelerator.device)
@@ -406,7 +414,7 @@ def train_one_epoch(
                 model_ema.update(model)
             optimizer.zero_grad()
             overall_step += 1
-            if overall_step % 100 == 0:
+            if overall_step % 1000 == 0:
                 accelerator.print(
                     f'Train: {epoch} {batch_idx}/{len(active_dataloader)}({batch_idx/len(active_dataloader)*100 :>3.0f}%) Loss: {loss.item()}',
                     # main_process_only=True,

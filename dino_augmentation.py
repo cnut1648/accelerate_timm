@@ -1,6 +1,7 @@
 # Code adapted from https://github.com/facebookresearch/dino
 
 import random
+import torch
 from PIL import Image, ImageFilter, ImageOps
 from torchvision import transforms
 
@@ -77,6 +78,7 @@ class DataAugmentationDINO(object):
             flip_and_color_jitter,
             GaussianBlur(p=0.5),
             normalize,
+            transforms.Resize(224, antialias=True, interpolation=Image.BICUBIC)
         ])
 
 
@@ -86,4 +88,4 @@ class DataAugmentationDINO(object):
         crops.append(self.global_transfo2(image))
         for _ in range(self.local_crops_number):
             crops.append(self.local_transfo(image))
-        return crops
+        return torch.stack(crops)

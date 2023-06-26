@@ -4,6 +4,4 @@ accelerate launch --mixed_precision=bf16 --multi_gpu train.py \
     --val_dir datasets/val \
     --test_dir datasets/val \
     --model resnet50 \
-    --aa v0 \
-    --mixup 0.2 \
-    -b 128
+    -b 16
