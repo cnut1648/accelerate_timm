@@ -4,6 +4,8 @@ import random
 import torch
 from PIL import Image, ImageFilter, ImageOps
 from torchvision import transforms
+import numpy as np
+from timm.data.transforms import ToNumpy
 
 
 class GaussianBlur(object):
@@ -61,7 +63,7 @@ class DataAugmentationDINO(object):
             transforms.RandomResizedCrop(224, scale=global_crops_scale, interpolation=Image.BICUBIC),
             flip_and_color_jitter,
             GaussianBlur(1.0),
-            normalize,
+            ToNumpy(),
         ])
         # second global crop
         self.global_transfo2 = transforms.Compose([
@@ -69,7 +71,7 @@ class DataAugmentationDINO(object):
             flip_and_color_jitter,
             GaussianBlur(0.1),
             Solarization(0.2),
-            normalize,
+            ToNumpy(),
         ])
         # transformation for the local small crops
         self.local_crops_number = local_crops_number
@@ -77,8 +79,8 @@ class DataAugmentationDINO(object):
             transforms.RandomResizedCrop(96, scale=local_crops_scale, interpolation=Image.BICUBIC),
             flip_and_color_jitter,
             GaussianBlur(p=0.5),
-            normalize,
-            transforms.Resize(224, antialias=True, interpolation=Image.BICUBIC)
+            transforms.Resize(224, antialias=True, interpolation=Image.BICUBIC),
+            ToNumpy()
         ])
 
 
@@ -88,4 +90,4 @@ class DataAugmentationDINO(object):
         crops.append(self.global_transfo2(image))
         for _ in range(self.local_crops_number):
             crops.append(self.local_transfo(image))
-        return torch.stack(crops)
+        return np.stack(crops)

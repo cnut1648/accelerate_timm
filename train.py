@@ -249,12 +249,13 @@ def training_function(args):
         device=accelerator.device,
     )
 
-    # transforms default values from https://github.com/facebookresearch/dino/blob/main/main_dino.py
-    train_dataloader.dataset.transform = DataAugmentationDINO(
-        global_crops_scale=(0.4, 1),
-        local_crops_scale=(0.05, 4),
-        local_crops_number=8,
-    )
+    if args.dino_aug:
+        # Default values from https://github.com/facebookresearch/dino/blob/main/main_dino.py
+        train_dataloader.dataset.transform = DataAugmentationDINO(
+            global_crops_scale=(0.4, 1),
+            local_crops_scale=(0.05, 4),
+            local_crops_number=8,
+        )
 
     # We could avoid this line since the accelerator is set with `device_placement=True` (default value).
     # Note that if you are placing tensors on devices manually, this line absolutely needs to be before the optimizer
@@ -394,7 +395,8 @@ def train_one_epoch(
     for batch_idx, (inputs, targets) in enumerate(active_dataloader):
         with accelerator.accumulate(model):
 
-            if isinstance(active_dataloader.dataset.transform, DataAugmentationDINO):
+            if args.dino_aug:
+                assert isinstance(active_dataloader.dataset.transform, DataAugmentationDINO)
                 assert inputs.ndim == 5
                 l = inputs.shape[1]
                 inputs = rearrange(inputs, "b l c h w -> (b l) c h w")
@@ -403,6 +405,13 @@ def train_one_epoch(
             if mixup_fn is not None:
                 inputs, targets = mixup_fn(inputs, targets)
             # inputs, targets = inputs.to(accelerator.device), targets.to(accelerator.device)
+
+            # Debug: show transformed image
+            # from torchvision import transforms
+            # mean = torch.squeeze(active_dataloader.mean, dim=0)
+            # std = torch.squeeze(active_dataloader.std, dim=0)
+            # (transforms.ToPILImage(mode="RGB")((inputs[0] * std + mean).to(torch.int8))).save("tmp0.png")
+
             outputs = model(inputs)
             loss = train_loss_fn(outputs, targets)
             # We keep track of the loss at each epoch
@@ -655,6 +664,8 @@ def main():
                        help='Drop path rate (default: None)')
     group.add_argument('--drop-block', type=float, default=None, metavar='PCT',
                        help='Drop block rate (default: None)')
+    group.add_argument("--dino-aug", action='store_true', default=False,
+                       help='Use DINO multi-crop augmentation (default: None)')
 
     group = parser.add_argument_group('EMA')
     group.add_argument('--model-ema', action='store_true', default=False,
