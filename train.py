@@ -325,11 +325,21 @@ def training_function(args):
     # We also need to keep track of the starting epoch so files are named properly
     starting_epoch = 0
 
+    # Potentially load in the weights only from a previous save
+    if args.load_checkpoint is not None:
+        accelerator.print(f"Load checkpoint: {args.load_checkpoint}")
+        model.load_state_dict(torch.load(args.load_checkpoint))
+        #accelerate.load_checkpoint_and_dispatch(model, args.load_checkpoint)
+        args.resume_from_checkpoint = None
+
     # Potentially load in the weights and states from a previous save
     if args.resume_from_checkpoint:
         if args.resume_from_checkpoint is not None or args.resume_from_checkpoint != "":
             accelerator.print(f"Resumed from checkpoint: {args.resume_from_checkpoint}")
-            accelerator.load_state(args.resume_from_checkpoint)
+            try:
+                accelerator.load_state(args.resume_from_checkpoint)
+            except:
+                accelerate.load_checkpoint_and_dispatch(model, args.resume_from_checkpoint)
             path = os.path.basename(args.resume_from_checkpoint)
             if args.model_ema:
                 timm.models.load_checkpoint(model_ema.module, args.resume, use_ema=True)
@@ -356,6 +366,7 @@ def training_function(args):
             lr_scheduler.step(starting_epoch)
 
     # Now we train the model
+    accelerator.wait_for_everyone()
     for epoch in range(starting_epoch, num_epochs):
         model.train()
         if args.mixup_off_epoch and epoch >= args.mixup_off_epoch:
@@ -377,12 +388,21 @@ def training_function(args):
             args, model, optimizer, lr_scheduler, train_loss_fn, active_dataloader, accelerator,
             epoch, overall_step, checkpointing_steps, model_ema=model_ema, mixup_fn=mixup_fn
         )
-        
+        accelerator.wait_for_everyone() 
         eval_metric = evaluate(args, model, validate_loss_fn, val_dataloader, accelerator, epoch, checkpointing_steps)
         # Use accelerator.print to print only on the main process.
         accelerator.print(f"epoch {epoch}: top1={eval_metric[0]:.2f}, top5={eval_metric[1]:.2f}")
 
     test_metric = evaluate(args, model, validate_loss_fn, test_dataloader, accelerator, epoch, checkpointing_steps)
+    accelerator.print(f"test: top1={test_metric[0]:.2f}, top5={test_metric[1]:.2f}")
+
+    accelerator.wait_for_everyone()
+    if accelerator.is_main_process:
+        output_dir = "imagenet_real.pt"
+        if args.output_dir is not None:
+            output_dir = os.path.join(args.output_dir, output_dir)
+        torch.save(model.state_dict(), output_dir)
+        print(f"model saved at {os.path.join(os.getcwd(), output_dir)}") 
 
     if args.with_tracking:
         accelerator.end_training()
@@ -709,6 +729,12 @@ def main():
         type=str,
         default=None,
         help="Whether the various states should be saved at the end of every n steps, or 'epoch' for each epoch.",
+    )
+    group.add_argument(
+        "--load_checkpoint",
+        type=str,
+        default=None,
+        help="If the training should continue from a saved weights checkpoint.",
     )
     group.add_argument(
         "--resume_from_checkpoint",

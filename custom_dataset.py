@@ -164,18 +164,29 @@ def get_train_val_test_dataset(dset, train_dirs: List[str], val_dir: str, test_d
     # train_datasets = torch.utils.data.ConcatDataset([
     #     SynImageFolder(d, use_imagenet=100) for d in train_dirs
     # ])
-    train_datasets = SynImageFolder(
-        train_dirs[0], 
-        use_imagenet=100, 
-        transform=None,  # any transforms provided here will be owritten by timm create_loader function
-    )
+    if dset == "imagenet_syn":
+        train_datasets = SynImageFolder(
+            train_dirs[0], 
+            use_imagenet=100, 
+            transform=None,  # any transforms provided here will be owritten by timm create_loader function
+        )
+    elif dset == "imagenet_real":
+        train_datasets = ImageNet100(train_dirs[0])
+    else:
+        raise NotImplementedError
     val_dataset = ImageNet100(val_dir)
     test_dataset = ImageNet100(test_dir)
     return train_datasets, val_dataset, test_dataset
 
 def add_dataset_args(parser):
     group = parser.add_argument_group('DATA')
-    group.add_argument("--dset", type=str, default="cifar10", help="dataset name")
+    group.add_argument(
+        "--dset", 
+        type=str, 
+        default="imagenet_syn", 
+        choices=["imagenet_syn", "imagenet_real"],
+        help="dataset type or name"
+    )
     group.add_argument("--version", default=None, help="only used in _syn dset", nargs="+")
     group.add_argument("--train_dirs", required=True, nargs="+", help="The data folder on disk.")
     group.add_argument("--val_dir", required=True, help="The data folder on disk.")
