@@ -7,6 +7,7 @@ import urllib.request
 from tqdm.auto import tqdm
 from concurrent import futures
 import torch
+from torch.utils.data import ConcatDataset
 
 # All imagenet class list and dict are sorted by worndet id in ascending order
 from classnames_imagenet import classnames_simple as imagenet_classnames
@@ -14,6 +15,21 @@ from classnames_imagenet import subset100 as imagenet100classes
 imagenet100classes = sorted(imagenet100classes)
 
 from dino_augmentation import DataAugmentationDINO
+
+
+class CustomConcatDataset(ConcatDataset):
+    def __getitem__(self, idx):
+        sample, target = super().__getitem__(idx)
+        try:
+            sample = self.transform(sample)
+        except:
+            pass
+        try:
+            target = self.target_transform(target)
+        except:
+            pass
+        return sample, target
+
 
 class ImageNet100(ImageFolder):
     def _find_classes(self, directory: str):
@@ -161,19 +177,21 @@ class SynImageFolder(DatasetFolder):
 
 def get_train_val_test_dataset(dset, train_dirs: List[str], val_dir: str, test_dir: str):
     assert all(os.path.exists(d) for d in train_dirs + [val_dir, test_dir])
-    # train_datasets = torch.utils.data.ConcatDataset([
-    #     SynImageFolder(d, use_imagenet=100) for d in train_dirs
-    # ])
-    if dset == "imagenet_syn":
-        train_datasets = SynImageFolder(
-            train_dirs[0], 
-            use_imagenet=100, 
-            transform=None,  # any transforms provided here will be owritten by timm create_loader function
-        )
-    elif dset == "imagenet_real":
-        train_datasets = ImageNet100(train_dirs[0])
-    else:
-        raise NotImplementedError
+    assert len(dset) == len(train_dirs)
+    train_datasets = []
+    for i in range(len(dset)):
+        if dset[i] == "imagenet_syn":
+            train_dataset = SynImageFolder(
+                train_dirs[i], 
+                use_imagenet=100, 
+                transform=None,  # any transforms provided here will be overitten by timm create_loader function
+            )
+        elif dset[i] == "imagenet_real":
+            train_dataset = ImageNet100(train_dirs[i])
+        else:
+            raise NotImplementedError
+        train_datasets.append(train_dataset)
+    train_datasets = CustomConcatDataset(train_datasets)
     val_dataset = ImageNet100(val_dir)
     test_dataset = ImageNet100(test_dir)
     return train_datasets, val_dataset, test_dataset
@@ -185,6 +203,7 @@ def add_dataset_args(parser):
         type=str, 
         default="imagenet_syn", 
         choices=["imagenet_syn", "imagenet_real"],
+        nargs="+",
         help="dataset type or name"
     )
     group.add_argument("--version", default=None, help="only used in _syn dset", nargs="+")

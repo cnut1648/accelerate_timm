@@ -398,7 +398,7 @@ def training_function(args):
 
     accelerator.wait_for_everyone()
     if accelerator.is_main_process:
-        output_dir = "imagenet_real.pt"
+        output_dir = "final_weights.pt"
         if args.output_dir is not None:
             output_dir = os.path.join(args.output_dir, output_dir)
         torch.save(model.state_dict(), output_dir)
@@ -414,7 +414,6 @@ def train_one_epoch(
     total_loss = 0
     for batch_idx, (inputs, targets) in enumerate(active_dataloader):
         with accelerator.accumulate(model):
-
             if args.dino_aug:
                 assert isinstance(active_dataloader.dataset.transform, DataAugmentationDINO)
                 assert inputs.ndim == 5
