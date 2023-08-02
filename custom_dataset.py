@@ -58,8 +58,8 @@ class SynImageFolder(DatasetFolder):
             use_imagenet: int = 1000
     ):
         """
-        will look for clip_postprocess.json and instances.json in root
-        (1) if clip_postprocess.json exists, will use it to select images
+        will look for clip_postprocessed.json and instances.json in root
+        (1) if clip_postprocssed.json exists, will use it to select images
             else will use all images in root
 
         (2) if instances.json (or instances_100.json) exists, will use it to return in @make_dataset
@@ -67,9 +67,9 @@ class SynImageFolder(DatasetFolder):
         """
         self.instances = None
         self.selected = None
-        if os.path.exists(os.path.join(root, "clip_postprocess.json")):
-            print(f"loading clip_postprocess.json from {root}")
-            with open(os.path.join(root, "clip_postprocess.json")) as f:
+        if os.path.exists(os.path.join(root, "clip_postprocessed.json")):
+            print(f"loading clip_postprocessed.json from {root}")
+            with open(os.path.join(root, "clip_postprocessed.json")) as f:
                 self.selected = json.load(f)
         if os.path.exists(os.path.join(root, f"instances_{use_imagenet}.json")):
             print(f"loading instances_{use_imagenet}.json from {root}")
