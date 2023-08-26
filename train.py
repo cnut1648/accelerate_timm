@@ -442,11 +442,11 @@ def train_one_epoch(
                 model_ema.update(model)
             optimizer.zero_grad()
             overall_step += 1
-            if overall_step % 1000 == 0:
-                accelerator.print(
-                    f'Train: {epoch} {batch_idx}/{len(active_dataloader)}({batch_idx/len(active_dataloader)*100 :>3.0f}%) Loss: {loss.item()}',
+            # if overall_step % 1000 == 0:
+            #     accelerator.print(
+            #         f'Train: {epoch} {batch_idx}/{len(active_dataloader)}({batch_idx/len(active_dataloader)*100 :>3.0f}%) Loss: {loss.item()}',
                     # main_process_only=True,
-                )
+            #     )
             if isinstance(checkpointing_steps, int):
                 output_dir = f"step_{overall_step}"
                 if overall_step % checkpointing_steps == 0:
@@ -473,7 +473,7 @@ def evaluate(
     accurate = 0
     num_elems = 0
     total_loss = 0
-    logits, refs = torch.Tensor([]).to(model.device), torch.Tensor([]).to(model.device)
+    logits, refs = torch.Tensor([]).to(accelerator.device), torch.Tensor([]).to(accelerator.device)
     for step, (inputs, targets) in enumerate(val_dataloader):
         with torch.no_grad():
             outputs = model(inputs)

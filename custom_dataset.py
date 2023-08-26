@@ -32,6 +32,10 @@ class CustomConcatDataset(ConcatDataset):
 
 
 class ImageNet100(ImageFolder):
+    def __init__(self, dir):
+        super().__init__(dir)
+        print(f"Loading {len(self.imgs)} images from {self.root}")
+
     def _find_classes(self, directory: str):
         # for torchvision 0.9
         return self.find_classes(directory)
@@ -71,7 +75,7 @@ class SynImageFolder(DatasetFolder):
             print(f"loading clip_postprocessed.json from {root}")
             with open(os.path.join(root, "clip_postprocessed.json")) as f:
                 self.selected = json.load(f)
-        if os.path.exists(os.path.join(root, f"instances_{use_imagenet}.json")):
+        elif os.path.exists(os.path.join(root, f"instances_{use_imagenet}.json")):
             print(f"loading instances_{use_imagenet}.json from {root}")
             with open(os.path.join(root, f"instances_{use_imagenet}.json")) as f:
                 self.instances = json.load(f)
@@ -81,6 +85,7 @@ class SynImageFolder(DatasetFolder):
                                           transform=transform,
                                           target_transform=target_transform,
                                           is_valid_file=is_valid_file)
+        print(f"Loading {len(self.instances)} images from {self.root}")
 
     def _find_classes(self, directory: str):
         # for torchvision 0.9
@@ -92,7 +97,7 @@ class SynImageFolder(DatasetFolder):
         """
         if self.use_imagenet == 10:
             raise NotImplementedError
-            i# imagenet_classes = ['American robin', 'American lobster', 'Saluki', 'Standard Poodle', 'hare', 'car wheel', 'honeycomb', 'mousetrap', 'safety pin', 'vacuum cleaner']
+            # imagenet_classes = ['American robin', 'American lobster', 'Saluki', 'Standard Poodle', 'hare', 'car wheel', 'honeycomb', 'mousetrap', 'safety pin', 'vacuum cleaner']
         elif self.use_imagenet == 100:
             imagenet_classes = [v for k,v in imagenet_classnames.items() if k in imagenet100classes]
         else:
@@ -122,8 +127,8 @@ class SynImageFolder(DatasetFolder):
         Return list of instances, each (img path, idx label) pair
         """
         if self.instances:
-            print("Loading from instances.json")
-            return  [
+            print("Loading from existing json file")
+            return [
                 (os.path.join(directory, img), cls_)
                 for img, cls_ in self.instances
             ]
@@ -133,10 +138,11 @@ class SynImageFolder(DatasetFolder):
             for cls_, select_images in tqdm(self.selected.items(), desc="selecting images"):
                 if cls_ in class_to_idx: # in case of imagenet100
                     cls_s.append(cls_)
-                    for img in select_images["images"]:
-                        imgfile = os.path.join(directory, img)
-                        if os.path.exists(imgfile):
-                            self.instances.append((img, class_to_idx[cls_]))
+                    for caption_dir, img_list in select_images.items():
+                        for img in img_list:
+                            img_file = os.path.join(directory, caption_dir, img)
+                            if os.path.exists(img_file):
+                                self.instances.append((img_file, class_to_idx[cls_]))
             assert len(cls_s) == self.use_imagenet
         else: # find all in the subdir
             def valid_images(caption: str):
