@@ -75,7 +75,7 @@ class SynImageFolder(DatasetFolder):
             print(f"loading clip_postprocessed.json from {root}")
             with open(os.path.join(root, "clip_postprocessed.json")) as f:
                 self.selected = json.load(f)
-        elif os.path.exists(os.path.join(root, f"instances_{use_imagenet}.json")):
+        if os.path.exists(os.path.join(root, f"instances_{use_imagenet}.json")):
             print(f"loading instances_{use_imagenet}.json from {root}")
             with open(os.path.join(root, f"instances_{use_imagenet}.json")) as f:
                 self.instances = json.load(f)
