@@ -85,7 +85,8 @@ class SynImageFolder(DatasetFolder):
                                           transform=transform,
                                           target_transform=target_transform,
                                           is_valid_file=is_valid_file)
-        print(f"Loading {len(self.instances)} images from {self.root}")
+        if self.instances is not None:
+            print(f"Loading {len(self.instances)} images from {self.root}")
 
     def _find_classes(self, directory: str):
         # for torchvision 0.9
@@ -140,8 +141,8 @@ class SynImageFolder(DatasetFolder):
                     cls_s.append(cls_)
                     for caption_dir, img_list in select_images.items():
                         for img in img_list:
-                            img_file = os.path.join(directory, caption_dir, img)
-                            if os.path.exists(img_file):
+                            img_file = os.path.join(caption_dir, img)
+                            if os.path.exists(os.path.join(directory, img_file)):
                                 self.instances.append((img_file, class_to_idx[cls_]))
             assert len(cls_s) == self.use_imagenet
         else: # find all in the subdir
