@@ -164,3 +164,12 @@ imagenet_*
 val
 output
 datasets
+
+.idea
+eval_imagenet_variants/ImageNetV2-matched-frequency
+eval_imagenet_variants/ImageNetV2-threshold-0.7
+eval_imagenet_variants/ImageNetV2-top-images
+eval_imagenet_variants/imagenet
+eval_imagenet_variants/*.tar*
+eval_imagenet_variants/imagenet-a
+eval_imagenet_variants/imagenet-r
