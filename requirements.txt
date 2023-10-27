@@ -4,3 +4,4 @@ timm
 accelerate
 pillow
 einops
+torchmetrics
