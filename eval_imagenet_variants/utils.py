@@ -162,7 +162,7 @@ def get_args():
                        help='Start with pretrained version of specified network (if avail)')
     group.add_argument('--initial-checkpoint', default='', type=str, metavar='PATH',
                        help='Initialize model from this checkpoint (default: none)')
-    group.add_argument('--num-classes', type=int, default=None, metavar='N',
+    group.add_argument('--num-classes', type=int, default=None, metavar='N',choices=[100, 1000],
                        help='number of label classes (Model default if None)')
     group.add_argument('--gp', default=None, type=str, metavar='POOL',
                        help='Global pool type, one of (fast, avg, max, avgmax, avgmaxc). Model default if None.')
