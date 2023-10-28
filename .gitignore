@@ -1,6 +1,7 @@
 # data
 imagenet-r
 imagenet-a
+ImageNetV2*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

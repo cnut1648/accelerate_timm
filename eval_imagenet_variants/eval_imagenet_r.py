@@ -67,7 +67,6 @@ def evaluate(model, test_dataloader, n_cls):
     else:
         raise ValueError("n_cls should be either 100 or 1000")
 
-
     model.eval().cuda()
     top1 = torchmetrics.Accuracy(task="multiclass", num_classes=len(indices_in_output), top_k=1).to("cuda")
     top5 = torchmetrics.Accuracy(task="multiclass", num_classes=len(indices_in_output), top_k=5).to("cuda")
