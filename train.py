@@ -404,7 +404,7 @@ def training_function(args):
         output_ckpt_path = "final_weights.pt"
         output_path = os.path.join(args.output_dir, output_ckpt_path)
         torch.save(model.state_dict(), output_path)
-        print(f"model saved at {os.path.join(os.getcwd(), output_dir)}") 
+        print(f"model saved at {os.path.join(os.getcwd(), output_path)}") 
 
     if args.with_tracking:
         accelerator.end_training()
