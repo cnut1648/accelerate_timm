@@ -27,6 +27,7 @@ from timm.scheduler import create_scheduler_v2, scheduler_kwargs
 from timm.loss import JsdCrossEntropy, SoftTargetCrossEntropy, BinaryCrossEntropy, LabelSmoothingCrossEntropy
 from timm.utils.metrics import accuracy
 from einops import rearrange, repeat
+from tqdm import tqdm
 
 import accelerate
 from accelerate import Accelerator
@@ -367,6 +368,8 @@ def training_function(args):
 
     # Now we train the model
     accelerator.wait_for_everyone()
+    if accelerator.is_main_process:
+        print("Start training")
     for epoch in range(starting_epoch, num_epochs):
         model.train()
         if args.mixup_off_epoch and epoch >= args.mixup_off_epoch:
@@ -397,11 +400,10 @@ def training_function(args):
     accelerator.print(f"test: top1={test_metric[0]:.2f}, top5={test_metric[1]:.2f}")
 
     accelerator.wait_for_everyone()
-    if accelerator.is_main_process:
-        output_dir = "final_weights.pt"
-        if args.output_dir is not None:
-            output_dir = os.path.join(args.output_dir, output_dir)
-        torch.save(model.state_dict(), output_dir)
+    if accelerator.is_main_process and args.output_dir is not None:
+        output_ckpt_path = "final_weights.pt"
+        output_path = os.path.join(args.output_dir, output_ckpt_path)
+        torch.save(model.state_dict(), output_path)
         print(f"model saved at {os.path.join(os.getcwd(), output_dir)}") 
 
     if args.with_tracking:
@@ -412,7 +414,7 @@ def train_one_epoch(
     epoch, overall_step, checkpointing_steps, model_ema=None, mixup_fn=None
 ):
     total_loss = 0
-    for batch_idx, (inputs, targets) in enumerate(active_dataloader):
+    for batch_idx, (inputs, targets) in tqdm(enumerate(active_dataloader), total=len(active_dataloader)):
         with accelerator.accumulate(model):
             if args.dino_aug:
                 assert isinstance(active_dataloader.dataset.transform, DataAugmentationDINO)

@@ -1,5 +1,5 @@
 from pathlib import Path
-
+import sys
 import torch
 import torchvision
 import torchmetrics
@@ -8,10 +8,12 @@ from utils import get_args, load_model
 
 pwd = Path(__file__).parent.resolve()
 
+sys.path.insert(0, str(pwd.parent))
+from classnames_imagenet import subset100
+from classnames_imagenet import classnames_simple as classnames
+
 @torch.no_grad()
-def evaluate(
-    model, test_dataloader
-):
+def evaluate(model, test_dataloader, n_cls):
     thousand_k_to_200 = {0: -1, 1: -1, 2: -1, 3: -1, 4: -1, 5: -1, 6: 0, 7: -1, 8: -1, 9: -1, 10: -1, 11: 1, 12: -1,
                          13: 2, 14: -1, 15: 3, 16: -1, 17: 4, 18: -1, 19: -1, 20: -1, 21: -1, 22: 5, 23: 6, 24: -1,
                          25: -1, 26: -1, 27: 7, 28: -1, 29: -1, 30: 8, 31: -1, 32: -1, 33: -1, 34: -1, 35: -1, 36: -1,
@@ -111,16 +113,43 @@ def evaluate(
                          978: -1, 979: -1, 980: 194, 981: 195, 982: -1, 983: -1, 984: 196, 985: -1, 986: 197, 987: 198,
                          988: 199, 989: -1, 990: -1, 991: -1, 992: -1, 993: -1, 994: -1, 995: -1, 996: -1, 997: -1,
                          998: -1, 999: -1}
-
+ 
     indices_in_1k = [k for k in thousand_k_to_200 if thousand_k_to_200[k] != -1]
 
+    if n_cls == 100:
+        thousand_wnid = sorted(list(classnames.keys()))
+        hundred_wnid = sorted(subset100)
+        thousand2hundred = {}
+        for i in range(len(thousand_wnid)):
+            if thousand_wnid[i] in hundred_wnid:
+                thousand2hundred[i] = hundred_wnid.index(thousand_wnid[i])
+        indices_in_output = [thousand2hundred[i] for i in indices_in_1k if i in thousand2hundred.keys()]
+        twohundred2output = {}
+        for i in range(len(indices_in_1k)):
+            if indices_in_1k[i] in thousand2hundred.keys():
+                index_in_1h = thousand2hundred[indices_in_1k[i]]
+                if index_in_1h in indices_in_output:
+                    twohundred2output[i] = indices_in_output.index(index_in_1h)
+    elif n_cls == 1000:
+        indices_in_output = indices_in_1k
+    else:
+        raise ValueError("n_cls should be either 100 or 1000")
+    
     model.eval().cuda()
-    top1 = torchmetrics.Accuracy(task="multiclass", num_classes=200, top_k=1).to("cuda")
-    top5 = torchmetrics.Accuracy(task="multiclass", num_classes=200, top_k=5).to("cuda")
+    top1 = torchmetrics.Accuracy(task="multiclass", num_classes=len(indices_in_output), top_k=1).to("cuda")
+    top5 = torchmetrics.Accuracy(task="multiclass", num_classes=len(indices_in_output), top_k=5).to("cuda")
     for step, (inputs, targets) in tqdm(enumerate(test_dataloader), total=len(test_dataloader)):
-        inputs, targets = inputs.cuda(), targets.cuda()
-        outputs = model(inputs)[:, indices_in_1k]
+        inputs = inputs.cuda()
+        outputs = model(inputs)[:, indices_in_output]
+        if n_cls == 100:
+            targets.apply_(lambda x: twohundred2output.get(x, -1))
+            keep_indices = (targets != -1).nonzero(as_tuple=True)[0]
+            targets = targets[keep_indices]
+            outputs = outputs[keep_indices]
+            if len(targets) == 0:
+                continue    
         preds = torch.argmax(outputs, dim=1)
+        targets = targets.cuda()
         top1.update(preds, targets)
         top5.update(outputs, targets)
 
@@ -143,4 +172,4 @@ if __name__ == "__main__":
     dataset = torchvision.datasets.ImageFolder(root=str(pwd /"imagenet-a/"), transform=test_transform)
     test_dataloader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
 
-    evaluate(model, test_dataloader)
+    evaluate(model, test_dataloader, n_cls=args.num_classes)
