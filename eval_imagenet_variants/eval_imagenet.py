@@ -1,5 +1,5 @@
 from pathlib import Path
-
+import sys
 import torch
 import torchvision
 import torchmetrics
@@ -7,18 +7,39 @@ from tqdm.auto import tqdm
 from utils import get_args, load_model
 
 pwd = Path(__file__).parent.resolve()
+sys.path.insert(0, str(pwd.parent))
+from classnames_imagenet import subset100
+from classnames_imagenet import classnames_simple as classnames
 
 @torch.no_grad()
-def evaluate(
-    model, test_dataloader
-):
+def evaluate(model, test_dataloader, n_cls):
+    if n_cls == 100:
+        thousand_wnid = sorted(list(classnames.keys()))
+        hundred_wnid = sorted(subset100)
+        thousand2hundred = {}
+        for i in range(1000):
+            if thousand_wnid[i] in hundred_wnid:
+                thousand2hundred[i] = hundred_wnid.index(thousand_wnid[i])
+    elif n_cls == 1000:
+        pass
+    else:
+        raise ValueError("n_cls should be either 100 or 1000")
+
     model.eval().cuda()
-    top1 = torchmetrics.Accuracy(task="multiclass", num_classes=1000, top_k=1).to("cuda")
-    top5 = torchmetrics.Accuracy(task="multiclass", num_classes=1000, top_k=5).to("cuda")
+    top1 = torchmetrics.Accuracy(task="multiclass", num_classes=n_cls, top_k=1).to("cuda")
+    top5 = torchmetrics.Accuracy(task="multiclass", num_classes=n_cls, top_k=5).to("cuda")
     for step, (inputs, targets) in tqdm(enumerate(test_dataloader), total=len(test_dataloader)):
-        inputs, targets = inputs.cuda(), targets.cuda()
+        inputs = inputs.cuda()
         outputs = model(inputs)
+        if n_cls == 100:
+            targets.apply_(lambda x: thousand2hundred.get(x, -1))
+            keep_indices = (targets != -1).nonzero(as_tuple=True)[0]
+            targets = targets[keep_indices]
+            outputs = outputs[keep_indices]
+            if len(targets) == 0:
+                continue
         preds = torch.argmax(outputs, dim=1)
+        targets = targets.cuda()
         top1.update(preds, targets)
         top5.update(outputs, targets)
 
@@ -39,4 +60,4 @@ if __name__ == "__main__":
     val_set = torchvision.datasets.ImageNet(root=str(pwd/"imagenet"), split="val", transform=test_transform)
     test_dataloader = torch.utils.data.DataLoader(val_set, batch_size=args.batch_size, shuffle=False, num_workers=4)
 
-    evaluate(model, test_dataloader)
+    evaluate(model, test_dataloader, args.num_classes)
