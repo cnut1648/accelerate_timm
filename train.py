@@ -158,8 +158,9 @@ def training_function(args):
     if args.aug_splits > 0:
         assert args.aug_splits > 1, 'A split of 1 makes no sense'
         num_aug_splits = args.aug_splits
-
-    train_dataset, val_dataset, test_dataset = get_train_val_test_dataset(args.dset, args.train_dirs, args.val_dir, args.test_dir)
+    train_dataset, val_dataset, test_dataset = get_train_val_test_dataset(
+        args.dset, args.train_dirs, args.val_dir, args.test_dir, args.portions
+    )
     # setup mixup / cutmix
     collate_fn = None
     mixup_fn = None

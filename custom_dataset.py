@@ -4,6 +4,7 @@ from typing import Optional, Callable, Dict, Tuple, Any, List
 from collections import OrderedDict
 from PIL import Image
 import urllib.request
+import random
 from tqdm.auto import tqdm
 from concurrent import futures
 import torch
@@ -30,11 +31,23 @@ class CustomConcatDataset(ConcatDataset):
             pass
         return sample, target
 
+    def __len__(self):
+        total = 0
+        for d in self.datasets:
+            total += len(d)
+        return total
+
 
 class ImageNet100(ImageFolder):
-    def __init__(self, dir):
+    def __init__(self, dir, portion=-1.0):
         super().__init__(dir)
-        print(f"Loading {len(self.imgs)} images from {self.root}")
+        if 0 < portion <= 1:
+            samples = []
+            for i in range(100):
+                cls_samples = [item for item in self.imgs if item[1] == i]
+                samples += random.sample(cls_samples, min(int(1300 * portion), len(cls_samples)))
+            self.samples = samples
+        print(f"Loading {len(self.samples)} images from {self.root}")
 
     def _find_classes(self, directory: str):
         # for torchvision 0.9
@@ -59,7 +72,8 @@ class SynImageFolder(DatasetFolder):
             target_transform: Optional[Callable] = None,
             loader: Callable[[str], Any] = default_loader,
             is_valid_file: Optional[Callable[[str], bool]] = None,
-            use_imagenet: int = 1000
+            use_imagenet: int = 1000,
+            portion: float = -1
     ):
         """
         will look for clip_postprocessed.json and instances.json in root
@@ -81,12 +95,20 @@ class SynImageFolder(DatasetFolder):
                 self.instances = json.load(f)
         self.use_imagenet = use_imagenet
 
-        super(SynImageFolder, self).__init__(root, loader, IMG_EXTENSIONS if is_valid_file is None else None,
-                                          transform=transform,
-                                          target_transform=target_transform,
-                                          is_valid_file=is_valid_file)
-        if self.instances is not None:
-            print(f"Loading {len(self.instances)} images from {self.root}")
+        super(SynImageFolder, self).__init__(
+            root, loader, IMG_EXTENSIONS if is_valid_file is None else None,
+            transform=transform,
+            target_transform=target_transform,
+            is_valid_file=is_valid_file
+        )
+        assert self.samples is not None
+        if 0 < portion <= 1:
+            samples = []
+            for i in range(self.use_imagenet):
+                cls_samples = [item for item in self.samples if item[1] == i]
+                samples += random.sample(cls_samples, min(int(1300 * portion), len(cls_samples)))
+            self.samples = samples
+        print(f"Loading {len(self.samples)} images from {self.root}")
 
     def _find_classes(self, directory: str):
         # for torchvision 0.9
@@ -127,12 +149,12 @@ class SynImageFolder(DatasetFolder):
         """
         Return list of instances, each (img path, idx label) pair
         """
-        if self.instances:
-            print("Loading from existing json file")
-            return [
-                (os.path.join(directory, img), cls_)
-                for img, cls_ in self.instances
-            ]
+        # if self.instances:
+        #     print("Loading from existing json file")
+        #     return [
+        #         (os.path.join(directory, img), cls_)
+        #         for img, cls_ in self.instances
+        #     ]
         self.instances = []
         if self.selected is not None:
             cls_s = []
@@ -145,7 +167,7 @@ class SynImageFolder(DatasetFolder):
                             if os.path.exists(os.path.join(directory, img_file)):
                                 self.instances.append((img_file, class_to_idx[cls_]))
             assert len(cls_s) == self.use_imagenet
-        else: # find all in the subdir
+        else:  # find all in the subdir
             def valid_images(caption: str):
                 caption = caption.replace('"', "%2522")
                 imgs = os.listdir(os.path.join(directory, dir, caption))
@@ -177,28 +199,36 @@ class SynImageFolder(DatasetFolder):
                     for r in res:
                         self.instances += r
         print("finishing all make_dataset, reading all path")
-        with open(os.path.join(self.root, f"instances_{self.use_imagenet}.json"), "w") as f:
-            json.dump(self.instances, f)
-        return self.make_dataset(directory, class_to_idx, extensions, is_valid_file) # based on self.instance
+        # with open(os.path.join(self.root, f"instances_{self.use_imagenet}.json"), "w") as f:
+        #     json.dump(self.instances, f)
+        return [
+            (os.path.join(directory, img), cls_)
+            for img, cls_ in self.instances
+        ]
+        # return self.make_dataset(directory, class_to_idx, extensions, is_valid_file)  # based on self.instance
 
 
-def get_train_val_test_dataset(dset, train_dirs: List[str], val_dir: str, test_dir: str):
+def get_train_val_test_dataset(dset, train_dirs: List[str], val_dir: str, test_dir: str, portions: List[float]):
     assert all(os.path.exists(d) for d in train_dirs + [val_dir, test_dir])
-    assert len(dset) == len(train_dirs)
+    assert len(dset) == len(train_dirs) == len(portions)
     train_datasets = []
     for i in range(len(dset)):
+        if portions[i] == 0:
+            continue
         if dset[i] == "imagenet_syn":
             train_dataset = SynImageFolder(
                 train_dirs[i], 
-                use_imagenet=100, 
+                use_imagenet=100,
                 transform=None,  # any transforms provided here will be overitten by timm create_loader function
+                portion=portions[i]
             )
         elif dset[i] == "imagenet_real":
-            train_dataset = ImageNet100(train_dirs[i])
+            train_dataset = ImageNet100(train_dirs[i], portion=portions[i])
         else:
             raise NotImplementedError
         train_datasets.append(train_dataset)
     train_datasets = CustomConcatDataset(train_datasets)
+    print(len(train_datasets))
     val_dataset = ImageNet100(val_dir)
     test_dataset = ImageNet100(test_dir)
     return train_datasets, val_dataset, test_dataset
@@ -214,7 +244,15 @@ def add_dataset_args(parser):
         help="dataset type or name"
     )
     group.add_argument("--version", default=None, help="only used in _syn dset", nargs="+")
-    group.add_argument("--train_dirs", required=True, nargs="+", help="The data folder on disk.")
+    group.add_argument("--train_dirs", required=True, nargs="+", help="The data folder on disk")
     group.add_argument("--val_dir", required=True, help="The data folder on disk.")
     group.add_argument("--test_dir", required=True, help="The data folder on disk.")
+    group.add_argument(
+        "--portions",
+        required=True,
+        nargs="+",
+        type=float,
+        default=-1,
+        help="portion used for each dataset, 1.0==1300 images per class for syn, -1 to use all images in directory")
+
     return parser
