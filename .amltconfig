@@ -1,0 +1,1 @@
+{"project_name": "sdcoop", "storage_account_name": "canadav100data", "container_name": "v-enlongzhao", "blob_storage_account_name": "canadav100data", "registry_name": "projects", "local_path": "/lab/briannlz/accelerate_timm", "default_output_dir": "/lab/briannlz/accelerate_timm/amlt", "project_uuid": "7315324856.73243-e0d38f51-eddf-4fd3-b777-3d2ed1126a6a", "version": "9.16.1"}

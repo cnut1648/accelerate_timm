@@ -1,0 +1,58 @@
+description: SDCoOp evaluate
+
+target:
+  service: sing
+#  service: amlk8s
+  name: msroctovc  # sing
+#  name: msrresrchvc  # sing
+#  name: itplabrr1cl1  # amlk8s
+#  name: itphyperbj1cl1  # amlk8s
+
+environment:
+  image: amlt-sing/pytorch-1.11.0-cuda11.6
+  setup:
+  - conda create -n imagenet python=3.10 -y
+  - conda init $$(basename $$SHELL)
+  - source $$(conda info --base)/etc/profile.d/conda.sh
+  - conda activate imagenet
+  - pip install -r requirements.txt -q
+
+code:
+  local_dir: $CONFIG_DIR
+
+data:
+  local_dir: /lab/tmpig4b/u/brian-data/
+  remote_dir: .
+
+env_defaults:
+  OUTPUT_DIR: "/mnt/default/pretrained"
+  REAL_DATA_DIR: "/mnt/default/imagenet/images/train"
+  SYN_DATA_DIR: "/mnt/default/projects/sdcoop/imagenet_syn_500img_reparam_ortho"
+  VAL_DATA_DIR: "/mnt/default/imagenet/images/val"
+  SYN: 1.0
+
+jobs:
+- name: SDCoOp
+  submit_args:
+    max_run_duration_seconds: 1209600
+  sku: 16G8  # sing
+#  sku: 32G16  #amlk8s
+  command:
+  - conda init $$(basename $$SHELL)
+  - source $$(conda info --base)/etc/profile.d/conda.sh
+  - conda activate imagenet
+  - export OUTPUT_DIR="${OUTPUT_DIR}/mixed_500_${SYN}"
+  - accelerate launch --mixed_precision=fp16 --multi_gpu train.py
+    --dset imagenet_real imagenet_syn
+    --train_dir "$REAL_DATA_DIR" "$SYN_DATA_DIR"
+    --portions 1 $SYN
+    --val_dir "$VAL_DATA_DIR"
+    --test_dir "$VAL_DATA_DIR"
+    --model resnet50
+    --num-classes 100
+    --aa v0
+    --mixup 0.2
+    --epochs 300
+    --output_dir "$$OUTPUT_DIR"
+    -b 256
+

@@ -1,8 +1,8 @@
 REAL_DATA_DIR="/lab/tmpig7b/u/brian-data/imagenet/images/train"
-SYN_DATA_DIR="/lab/tmpig7b/u/brian-data/imagenet_syn_1300img_reparam_ortho"
+SYN_DATA_DIR="/lab/tmpig7b/u/brian-data/imagenet_syn_500img_reparam_ortho"
 VAL_DATA_DIR="/lab/tmpig7b/u/brian-data/imagenet/images/val"
-OUTPUT_DIR="tmp"
-SYN=0.2
+SYN=0.4
+OUTPUT_DIR="output/mixed_500_${SYN}"
 
 
 accelerate launch --mixed_precision=fp16 --multi_gpu train.py \
@@ -17,4 +17,4 @@ accelerate launch --mixed_precision=fp16 --multi_gpu train.py \
     --mixup 0.2 \
     --epochs 300 \
     --output_dir "$OUTPUT_DIR" \
-    -b 256
+    -b 128

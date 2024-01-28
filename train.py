@@ -415,7 +415,7 @@ def train_one_epoch(
     epoch, overall_step, checkpointing_steps, model_ema=None, mixup_fn=None
 ):
     total_loss = 0
-    for batch_idx, (inputs, targets) in tqdm(enumerate(active_dataloader), total=len(active_dataloader)):
+    for batch_idx, (inputs, targets) in enumerate(active_dataloader):
         with accelerator.accumulate(model):
             if args.dino_aug:
                 assert isinstance(active_dataloader.dataset.transform, DataAugmentationDINO)

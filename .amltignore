@@ -1,0 +1,17 @@
+*.tar
+*.gz
+*.JPEG
+*.jpeg
+*.jpg
+*.png
+ImageNetV2-matched-frequency
+ImageNetV2-threshold-0.7.tar.gz
+output
+imagenet-a
+ImageNetV2-matched-frequency.tar.gz
+ImageNetV2-top-image
+__pycache__
+imagenet-r
+ImageNetV2-threshold-0.7
+datasets
+ImageNetV2-top-images.tar.gz 
