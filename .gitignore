@@ -1,3 +1,6 @@
+*_output/
+*_mix/
+
 # data
 imagenet-r
 imagenet-a

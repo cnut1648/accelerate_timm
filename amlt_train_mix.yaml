@@ -20,14 +20,14 @@ environment:
 code:
   local_dir: $CONFIG_DIR
 
-data:
-  local_dir: /lab/tmpig4b/u/brian-data/
-  remote_dir: .
+#data:
+#  local_dir: /lab/tmpig4b/u/brian-data/
+#  remote_dir: .
 
 env_defaults:
-  OUTPUT_DIR: "/mnt/default/pretrained"
+  OUTPUT_DIR: "/mnt/default/custom_diffusion_mix"
   REAL_DATA_DIR: "/mnt/default/imagenet/images/train"
-  SYN_DATA_DIR: "/mnt/default/projects/sdcoop/imagenet_syn_500img_reparam_ortho"
+  SYN_DATA_DIR: "/mnt/default/custom_diffusion_medium"
   VAL_DATA_DIR: "/mnt/default/imagenet/images/val"
   SYN: 1.0
 
@@ -41,7 +41,6 @@ jobs:
   - conda init $$(basename $$SHELL)
   - source $$(conda info --base)/etc/profile.d/conda.sh
   - conda activate imagenet
-  - export OUTPUT_DIR="${OUTPUT_DIR}/mixed_500_${SYN}"
   - accelerate launch --mixed_precision=fp16 --multi_gpu train.py
     --dset imagenet_real imagenet_syn
     --train_dir "$REAL_DATA_DIR" "$SYN_DATA_DIR"
@@ -52,7 +51,7 @@ jobs:
     --num-classes 100
     --aa v0
     --mixup 0.2
-    --epochs 300
-    --output_dir "$$OUTPUT_DIR"
+    --epochs 200
+    --output_dir "$OUTPUT_DIR"
     -b 256
 
